@@ -32,7 +32,7 @@ android {
         versionCode 1121
         versionName '1.12.1-' + getGitCommitHash()
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
-        resConfigs 'zh', 'zh-rCN', 'en', 'en-rUS'
+        resourceConfigurations += ['zh', 'zh-rCN', 'en', 'en-rUS']
         ndk {
             //noinspection ChromeOsAbiSupport
             abiFilters "arm64-v8a"

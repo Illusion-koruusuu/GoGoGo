@@ -42,6 +42,18 @@
             app:pressedTranslationZ="12dp"
             app:srcCompat="@drawable/ic_position" />
 
+        <com.google.android.material.floatingactionbutton.FloatingActionButton
+            android:id="@+id/faBtnRun"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom|center"
+            android:layout_marginBottom="80dp"
+            android:contentDescription="Run Button"
+            app:elevation="6dp"
+            app:pressedTranslationZ="12dp"
+            app:tint="@android:color/white"
+            app:srcCompat="@drawable/ic_run" />
+
         <LinearLayout
             android:id="@+id/search_linear"
             android:layout_width="match_parent"
