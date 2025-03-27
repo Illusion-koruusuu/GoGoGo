@@ -1,5 +1,6 @@
 package com.zcshou.gogogo;
 
+import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.DownloadManager;
 import android.content.BroadcastReceiver;
@@ -27,6 +28,7 @@ import android.text.SpannableStringBuilder;
 import android.text.TextUtils;
 import android.text.TextWatcher;
 import android.text.method.LinkMovementMethod;
+import android.util.Log;
 import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.Menu;
@@ -101,6 +103,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 
+import com.zcshou.joystick.JoyStick;
 import com.zcshou.service.ServiceGo;
 import com.zcshou.database.DataBaseHistoryLocation;
 import com.zcshou.database.DataBaseHistorySearch;
@@ -127,6 +130,9 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
     public static final String POI_LONGITUDE = "POI_LONGITUDE";
     public static final String POI_LATITUDE = "POI_LATITUDE";
 
+    public static final String ANGLE_ID = "ANGLE_ID";
+    public static final String R_ID = "R_ID";
+
     private OkHttpClient mOkHttpClient;
     private SharedPreferences sharedPreferences;
 
@@ -151,14 +157,20 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
     private final float[] mDirectionValues = new float[3];//模拟方向传感器的数据（原始数据为弧度）
     /************** 定位 *****************/
     private LocationClient mLocClient = null;
-    private double mCurrentLat = 0.0;       // 当前位置的百度纬度
-    private double mCurrentLon = 0.0;       // 当前位置的百度经度
+    public static double mCurrentLat = 0.0;       // 当前位置的百度纬度
+    public static double mCurrentLon = 0.0;       // 当前位置的百度经度
+
+    public static double startLat = 0.0;
+    public static double startLon = 0.0;
+
     private float mCurrentDirection = 0.0f;
     private boolean isFirstLoc = true; // 是否首次定位
     private boolean isMockServStart = false;
     private ServiceGo.ServiceGoBinder mServiceBinder;
     private ServiceConnection mConnection;
     private FloatingActionButton mButtonStart;
+    private FloatingActionButton mButtonStartRun;
+    private boolean StartRunFlag = false; // 开始跑步标志位默认为0
     /*============================== 历史记录 相关 ==============================*/
     private SQLiteDatabase mLocationHistoryDB;
     private GeoCoder mLocationHistoryGeoCoder;
@@ -177,6 +189,9 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
     private long mDownloadId;
     private BroadcastReceiver mDownloadBdRcv;
     private String mUpdateFilename;
+    private JoyStick mJoyStick;
+
+    private static float angle = 0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -197,6 +212,8 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
         sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
         mOkHttpClient = new OkHttpClient();
 
+        mJoyStick = new JoyStick(this);
+
         initNavigationView();
 
         initMap();
@@ -206,6 +223,8 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
         initMapButton();
 
         initGoBtn();
+
+        startRunBtn();
 
         mConnection = new ServiceConnection() {
             @Override
@@ -767,7 +786,7 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
                     }
 
                     mCurrentCity = bdLocation.getCity();
-                    mCurrentLat = bdLocation.getLatitude();
+                    mCurrentLat = bdLocation.getLatitude(); //TODO: 在这里获取了当前的真实位置经纬度信息
                     mCurrentLon = bdLocation.getLongitude();
                     MyLocationData locData = new MyLocationData.Builder()
                             .accuracy(bdLocation.getRadius())
@@ -1053,11 +1072,30 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
         mButtonStart.setOnClickListener(this::doGoLocation);
     }
 
+    private void startRunBtn() {
+        mButtonStartRun = findViewById(R.id.faBtnRun);
+        mButtonStartRun.setOnClickListener(this::startRun);
+    }
+
     private void startGoLocation() {
         Intent serviceGoIntent = new Intent(MainActivity.this, ServiceGo.class);
         bindService(serviceGoIntent, mConnection, BIND_AUTO_CREATE);    // 绑定服务和活动，之后活动就可以去调服务的方法了
-        double[] latLng = MapUtils.bd2wgs(mMarkLatLngMap.longitude, mMarkLatLngMap.latitude);
-        serviceGoIntent.putExtra(LNG_MSG_ID, latLng[0]);
+        double[] latLng = MapUtils.bd2wgs(mCurrentLon, mCurrentLat);    //TODO: 要使用MapUtils.bd2wgs才能把经纬度转换为地图坐标
+
+        Log.d("set_Location" , "latLng[0]: " + latLng[0]);
+        Log.d("set_Location" , "latLng[1]: " + latLng[1]);
+        Log.d("real_Location", "mCurrentLon: " + mCurrentLon);
+        Log.d("real_Location", "mCurrentLat: " + mCurrentLat);
+
+//        mCurrentLon = latLng[0];
+//        mCurrentLat = latLng[1];
+        startLat = latLng[1];
+        startLon = latLng[0];
+
+        Log.d("real_Location2", "mCurrentLon: " + mCurrentLon);
+        Log.d("real_Location2", "mCurrentLat: " + mCurrentLat);
+
+        serviceGoIntent.putExtra(LNG_MSG_ID, latLng[0]); //TODO: 本来为传送到用户标记的位置，现在修改为当前位置
         serviceGoIntent.putExtra(LAT_MSG_ID, latLng[1]);
         double alt = Double.parseDouble(sharedPreferences.getString("setting_altitude", "55.0"));
         serviceGoIntent.putExtra(ALT_MSG_ID, alt);
@@ -1091,6 +1129,7 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
                 stopGoLocation();
                 Snackbar.make(v, "模拟位置已终止", Snackbar.LENGTH_LONG).show();
                 mButtonStart.setImageResource(R.drawable.ic_position);
+                Log.d("tag0","potion1");
             } else {
                 double[] latLng = MapUtils.bd2wgs(mMarkLatLngMap.longitude, mMarkLatLngMap.latitude);
                 double alt = Double.parseDouble(sharedPreferences.getString("setting_altitude", "55.0"));
@@ -1099,14 +1138,17 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
                 mBaiduMap.clear();
                 mMarkLatLngMap = null;
                 GoUtils.showLocationNotice(this, v, true);
+                Log.d("tag0","potion2");
             }
         } else {
             if (!GoUtils.isAllowMockLocation(this)) {
                 GoUtils.showEnableMockLocationDialog(this);
                 XLog.e("无模拟位置权限!");
+                Log.d("tag0","potion3");
             } else {
                 if (mMarkLatLngMap == null) {
                     Snackbar.make(v, "请先点击地图位置或者搜索位置", Snackbar.LENGTH_LONG).show();
+                    Log.d("tag0","potion4");
                 } else {
                     startGoLocation();
                     mButtonStart.setImageResource(R.drawable.ic_fly);
@@ -1114,7 +1156,61 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
                     mBaiduMap.clear();
                     mMarkLatLngMap = null;
                     GoUtils.showLocationNotice(this, v, false);
+                    Log.d("tag0","potion5");
                 }
+            }
+        }
+    }
+
+    @SuppressLint("ResourceAsColor")
+    private void startRun(View v){
+        if (!GoUtils.isNetworkAvailable(this)) {
+            GoUtils.DisplayToast(this, getResources().getString(R.string.app_error_network));
+            return;
+        }
+
+        if (!GoUtils.isGpsOpened(this)) {
+            GoUtils.showEnableGpsDialog(this);
+            return;
+        }
+
+        if (isMockServStart) {
+            //TODO:修改 mMarkLatLngMap 为目标经纬度
+            if (StartRunFlag) {
+                Log.d("tag1","potion1");
+                stopGoLocation();
+                Snackbar.make(v, "模拟位置已终止", Snackbar.LENGTH_LONG).show();
+                mButtonStartRun.setImageResource(R.drawable.ic_run);
+            } else {
+                Log.d("tag1","potion2");
+//                double[] latLng = MapUtils.bd2wgs(mMarkLatLngMap.longitude, mMarkLatLngMap.latitude);
+//                double alt = Double.parseDouble(sharedPreferences.getString("setting_altitude", "55.0"));
+//                mServiceBinder.setPosition(latLng[0], latLng[1], alt);
+                mButtonStartRun.setImageResource(R.drawable.stop_foreground);
+                mButtonStartRun.setBackgroundColor(R.color.design_default_color_background);
+                recordCurrentLocation(mMarkLatLngMap.longitude, mMarkLatLngMap.latitude); //TODO:
+//                mBaiduMap.clear(); //TODO:
+                StartRunFlag = true;
+
+//                autoRun();
+//                GoUtils.showLocationNotice(this, v, true); //TODO:修改 mMarkLatLngMap 为目标经纬度
+            }
+        } else {
+            if (!GoUtils.isAllowMockLocation(this)) {
+                Log.d("tag1","potion3");
+                GoUtils.showEnableMockLocationDialog(this);
+                Snackbar.make(v, "无模拟位置权限！", Snackbar.LENGTH_LONG).show();
+                XLog.e("无模拟位置权限!");
+            } else {
+                Log.d("tag1","potion4");
+                startGoLocation();
+                mButtonStartRun.setImageResource(R.drawable.stop_foreground);
+                mButtonStartRun.setBackgroundColor(R.color.design_default_color_background);
+                recordCurrentLocation(mMarkLatLngMap.longitude, mMarkLatLngMap.latitude); //TODO:
+//                mBaiduMap.clear();
+                StartRunFlag = true;
+//                autoRun();
+//                GoUtils.showLocationNotice(this, v, false); //TODO:修改 mMarkLatLngMap 为目标经纬度
             }
         }
     }

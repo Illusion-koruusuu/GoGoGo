@@ -249,6 +249,7 @@ public class GoUtils {
                 .show();
     }
 
+    //TODO: one!!!
     public static void showLocationNotice(Context context, View view, boolean started) {
         String text = started ? "已传送到新位置" : "模拟位置已启动";
         if (Settings.canDrawOverlays(context)) {

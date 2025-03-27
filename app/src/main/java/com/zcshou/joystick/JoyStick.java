@@ -25,6 +25,7 @@ import android.widget.SearchView;
 
 import androidx.preference.PreferenceManager;
 
+import com.baidu.location.BDLocation;
 import com.baidu.mapapi.map.BaiduMap;
 import com.baidu.mapapi.map.MapPoi;
 import com.baidu.mapapi.map.MapStatus;
@@ -35,10 +36,12 @@ import com.baidu.mapapi.map.MyLocationData;
 import com.baidu.mapapi.model.LatLng;
 import com.baidu.mapapi.search.sug.SuggestionSearch;
 import com.baidu.mapapi.search.sug.SuggestionSearchOption;
+import com.elvishew.xlog.XLog;
 import com.zcshou.database.DataBaseHistoryLocation;
 import com.zcshou.gogogo.HistoryActivity;
 import com.zcshou.gogogo.MainActivity;
 import com.zcshou.gogogo.R;
+import com.zcshou.service.ServiceGo;
 import com.zcshou.utils.GoUtils;
 import com.zcshou.utils.MapUtils;
 
@@ -93,6 +96,29 @@ public class JoyStick extends View {
     private SuggestionSearch mSuggestionSearch;
     private ListView mSearchList;
     private LinearLayout mSearchLayout;
+
+    private static boolean isAdded = false;
+    private int timeCounter = 0;
+    private int runTime;
+
+    enum task
+    {
+        start,
+        position1,
+        position2,
+        position3,
+        position4;
+    }
+    private task nowTask;
+
+    private static final double targetLng_one = 123.41697833240335;
+    private static final double targetLat_one = 41.76491541945843;
+    private static final double targetLng_two = 123.41757974826271;
+    private static final double targetLat_two = 41.764835403886806;
+    private static final double targetLng_thr = 123.4176560344987;
+    private static final double targetLat_thr = 41.76574233466972;
+    private static final double targetLng_for = 123.41703134858219;
+    private static final double targetLat_for = 41.76578369753733;
 
     public JoyStick(Context context) {
         super(context);
@@ -160,6 +186,14 @@ public class JoyStick extends View {
     }
 
     public void show() {
+        Log.d("tag0", "potion7" );
+        Log.d("tag0", "isAdded: " + isAdded );
+        if (isAdded) {
+            Log.d("tag0", "potion6");
+            return;
+        }
+        isAdded = true;
+
         if (!Settings.canDrawOverlays(mContext)) {
             return;
         }
@@ -255,7 +289,7 @@ public class JoyStick extends View {
     private void initJoyStickView() {
         /* 移动计时器 */
         mTimer = new GoUtils.TimeCount(DivGo, DivGo);
-        mTimer.setListener(new GoUtils.TimeCount.TimeCountListener() {
+        mTimer.setListener(new GoUtils.TimeCount.TimeCountListener() { //TODO:在这里每一秒触发一次位置改变
             @Override
             public void onTick(long millisUntilFinished) {
 
@@ -263,10 +297,27 @@ public class JoyStick extends View {
 
             @Override
             public void onFinish() {
+                Log.d("timer","timer finish!!!");
+                Log.d("now_task","now_task: " + nowTask);
+                Log.d("nowAngle","now_angle: " + mAngle);
+                Log.d("nowPotion","now_potion: " + MainActivity.mCurrentLat);
+                timeCounter ++; //记录跑过的时间
+                runTime = calcalateTime(nowTask);
+                if (detectArrived())
+                {
+                    autoRun();
+                }
+
+
                 // 注意：这里的 x y 与 圆中角度的对应问题（以 X 轴正向为 0 度）且转换为 km
                 disLng = mSpeed * (double)(DivGo / 1000) * mR * Math.cos(mAngle * 2 * Math.PI / 360) / 1000;// 注意安卓中的三角函数使用的是弧度
                 disLat = mSpeed * (double)(DivGo / 1000) * mR * Math.sin(mAngle * 2 * Math.PI / 360) / 1000;// 注意安卓中的三角函数使用的是弧度
                 mListener.onMoveInfo(mSpeed, disLng, disLat, 90.0F-mAngle);
+
+                //TODO: 核心逻辑！
+//                disLng = mSpeed * (double)(DivGo / 1000) * 1 * Math.cos(0 * 2 * Math.PI / 360) / 1000;// 注意安卓中的三角函数使用的是弧度
+//                disLat = mSpeed * (double)(DivGo / 1000) * 1 * Math.sin(0 * 2 * Math.PI / 360) / 1000;// 注意安卓中的三角函数使用的是弧度
+//                mListener.onMoveInfo(mSpeed, disLng, disLat, 90.0F-0);
                 mTimer.start();
             }
         });
@@ -373,20 +424,25 @@ public class JoyStick extends View {
         }
     }
 
-    private void processDirection(boolean auto, double angle, double r) {
+    public void processDirection(boolean auto, double angle, double r) {
         if (r <= 0) {
             mTimer.cancel();
             isMove = false;
         } else {
-            mAngle = angle;
+            Log.d("tag-r","r=" + r );
+            Log.d("tag-a","angle=" + angle );
+//            mAngle = angle;
+            Log.d("joysticAngle","joystic_angle: " + angle);
             mR = r;
             if (auto) {
                 if (!isMove) {
-                    mTimer.start();
+                    nowTask = task.start;
+                    autoRun();
+                    mTimer.start(); //TODO: 触摸事件结束，开始触发计时器
                     isMove = true;
                 }
             } else {
-                mTimer.cancel();
+                mTimer.cancel(); //TODO: 解锁摇杆，停止计时器
                 isMove = false;
                 // 注意：这里的 x y 与 圆中角度的对应问题（以 X 轴正向为 0 度）且转换为 km
                 disLng = mSpeed * (double)(DivGo / 1000) * mR * Math.cos(mAngle * 2 * Math.PI / 360) / 1000;// 注意安卓中的三角函数使用的是弧度
@@ -830,4 +886,147 @@ public class JoyStick extends View {
             }
         }
     }
+
+    private void autoRun()
+    {
+        mR = 1;
+        mSpeed = 2;
+        switch (nowTask)
+        {
+            case start:
+                //TODO: 从当前点跑到position1
+//                nowTask = task.position1;
+                calculateAngle(MainActivity.startLat, MainActivity.startLon, targetLat_one, targetLng_one );
+                Log.d("calculate_position1", "calculate_position: " + MainActivity.startLat + "  " + MainActivity.startLon);
+                Log.d("calculate_position2", "calculate_position: " + targetLat_one + "  " + targetLng_one);
+
+//                mTimer.start();
+                break;
+            case position1:
+                //TODO: 跑到position2
+                calculateAngle(targetLat_one, targetLng_one, targetLat_two, targetLng_two );
+//                nowTask = task.position2;
+                break;
+            case position2:
+                //TODO: 跑到position3
+                calculateAngle(targetLat_two, targetLng_two, targetLat_thr, targetLng_thr );
+//                nowTask = task.position3;
+                break;
+            case position3:
+                //TODO: 跑到position4
+                calculateAngle(targetLat_thr, targetLng_thr, targetLat_for, targetLng_for );
+//                nowTask = task.position4;
+                break;
+            case position4:
+                //TODO: 跑到position1
+                calculateAngle(targetLat_for, targetLng_for, targetLat_one, targetLng_one );
+//                nowTask = task.position1;
+                break;
+        }
+    }
+
+    private void calculateAngle(double lat1, double lng1, double lat2, double lng2) {
+        // 转换为弧度
+        double lat1Rad = Math.toRadians(lat1);
+        double lat2Rad = Math.toRadians(lat2);
+        double deltaLng = Math.toRadians(lng2 - lng1);
+        double deltaLat = Math.toRadians(lat2 - lat1);
+
+        // 计算平均纬度（用于经度缩放）
+        double avgLat = (lat1Rad + lat2Rad) / 2;
+
+        // 计算角度
+        double theta = Math.atan2(deltaLng * Math.cos(avgLat), deltaLat);
+
+        // 将角度转换为度数
+        mAngle = Math.toDegrees(theta);
+
+        // 通过调整角度，使0度对应东，负值为南，正值为北
+        mAngle = 90 - mAngle;
+
+        // 确保角度范围在 -270 到 90 度之间
+        if (mAngle < -270) {
+            mAngle += 360; // 如果角度小于 -270，调整到正范围
+        } else if (mAngle > 90) {
+            mAngle -= 360; // 如果角度大于 90，调整到负范围
+        }
+    }
+
+    private int calcalateTime (task nowTask)
+    {
+        int this_runTime;
+        double disLat;
+        double disLng;
+        double dis;
+        switch (nowTask)
+        {
+            case start:
+                disLat = Math.abs(targetLat_one - MainActivity.startLat) * 110.574;
+                disLng = Math.abs(targetLng_one - MainActivity.startLon) * (111.320 * Math.cos(Math.abs(MainActivity.startLat) * Math.PI / 180));
+                dis = 1000 * Math.sqrt(disLat * disLat + disLng * disLng);
+                this_runTime = (int) (dis / mSpeed);
+                break;
+            case position1:
+                disLat = Math.abs(targetLat_two - targetLat_one) * 110.574;
+                disLng = Math.abs(targetLng_two - targetLng_one) * (111.320 * Math.cos(Math.abs(targetLat_one) * Math.PI / 180));
+                dis = 1000 * Math.sqrt(disLat * disLat + disLng * disLng);
+                this_runTime = (int) (dis / mSpeed);
+                break;
+            case position2:
+                disLat = Math.abs(targetLat_thr - targetLat_two) * 110.574;
+                disLng = Math.abs(targetLng_thr - targetLng_two) * (111.320 * Math.cos(Math.abs(targetLat_two) * Math.PI / 180));
+                dis = 1000 * Math.sqrt(disLat * disLat + disLng * disLng);
+                this_runTime = (int) (dis / mSpeed);
+                break;
+            case position3:
+                disLat = Math.abs(targetLat_for - targetLat_thr) * 110.574;
+                disLng = Math.abs(targetLng_for - targetLng_thr) * (111.320 * Math.cos(Math.abs(targetLat_thr) * Math.PI / 180));
+                dis = 1000 * Math.sqrt(disLat * disLat + disLng * disLng);
+                this_runTime = (int) (dis / mSpeed);
+                break;
+            case position4:
+                disLat = Math.abs(targetLat_one - targetLat_for) * 110.574;
+                disLng = Math.abs(targetLng_one - targetLng_for) * (111.320 * Math.cos(Math.abs(targetLat_thr) * Math.PI / 180));
+                dis = 1000 * Math.sqrt(disLat * disLat + disLng * disLng);
+                this_runTime = (int) (dis / mSpeed);
+                break;
+            default:
+                this_runTime = 1;
+        }
+        return this_runTime;
+    }
+
+    private boolean detectArrived ()
+    {
+        boolean arrivedFlag;
+        if (timeCounter >= runTime)
+        {
+            switch (nowTask)
+            {
+                case start:
+                    nowTask = task.position1;
+                    break;
+                case position1:
+                    nowTask = task.position2;
+                    break;
+                case position2:
+                    nowTask = task.position3;
+                    break;
+                case position3:
+                    nowTask = task.position4;
+                    break;
+                case position4:
+                    nowTask = task.position1;
+                    break;
+            }
+            timeCounter = 0;
+            arrivedFlag = true;
+        }
+        else
+        {
+            arrivedFlag = false;
+        }
+        return arrivedFlag;
+    }
+
 }

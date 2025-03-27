@@ -23,6 +23,7 @@ import android.os.IBinder;
 import android.os.Message;
 import android.os.Process;
 import android.os.SystemClock;
+import android.util.Log;
 
 import androidx.annotation.NonNull;
 import androidx.core.app.NotificationCompat;
@@ -93,6 +94,11 @@ public class ServiceGo extends Service {
 
         mJoyStick.setCurrentPosition(mCurLng, mCurLat, mCurAlt);
 
+        Log.d("tag_m", "mCurLng: " + mCurLng );
+        Log.d("tag_m", "mCurLat: " + mCurLat );
+        Log.d("tag_m", "mCurAlt: " + mCurAlt );
+
+        //TODO: 开始时传送到点按设置的位置（红色坐标）
         return super.onStartCommand(intent, flags, startId);
     }
 
@@ -160,6 +166,10 @@ public class ServiceGo extends Service {
                 // 具体见：http://wp.mlab.tw/?p=2200
                 mCurLng += disLng / (111.320 * Math.cos(Math.abs(mCurLat) * Math.PI / 180));
                 mCurLat += disLat / 110.574;
+
+                Log.d("tag0", "disLng: " + disLng );
+                Log.d("tag0", "disLat: " + disLat );
+
                 mCurBea = (float) angle;
             }
 
@@ -190,9 +200,21 @@ public class ServiceGo extends Service {
                         setLocationNetwork();
                         setLocationGPS();
 
+                        //TODO: 修改速度时间方向！
+//                        mCurLng += 5 / (111.320 * Math.cos(Math.abs(mCurLat) * Math.PI / 180));
+//                        mCurLat += 5 / 110.574;
+
+//                        Log.d("tag-m", "disLng: " + mCurLng );
+//                        Log.d("tag-m", "disLat: " + mCurLat );
+
+                        mCurBea = (float) 0;  //TODO: 这是什么？？？
+
                         sendEmptyMessage(HANDLER_MSG_ID);
                     }
-                    mJoyStick.show();
+//                    Log.d("tag0", "potion8" );
+
+                    //在这里调用mJoyStick.show()有重复注册view的bug
+//                    mJoyStick.show();
                 } catch (InterruptedException e) {
                     XLog.e("SERVICEGO: ERROR - handleMessage");
                     Thread.currentThread().interrupt();
