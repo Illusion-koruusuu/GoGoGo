@@ -53,7 +53,7 @@ import java.util.List;
 import java.util.Map;
 
 public class JoyStick extends View {
-    private static final int DivGo = 1000;    /* 移动的时间间隔，单位 ms */
+    private static final int DivGo = 1000;    /* 移动的时间间隔，单位 ms */  //TODO:修改移动的时间间隔
     private static final int WINDOW_TYPE_JOYSTICK = 0;
     private static final int WINDOW_TYPE_MAP = 1;
     private static final int WINDOW_TYPE_HISTORY = 2;
@@ -100,6 +100,9 @@ public class JoyStick extends View {
     private static boolean isAdded = false;
     private int timeCounter = 0;
     private int runTime;
+    private boolean fist_enter_flag = true;
+    private double nowLng;
+    private double nowLat;
 
     enum task
     {
@@ -442,7 +445,7 @@ public class JoyStick extends View {
                     isMove = true;
                 }
             } else {
-                mTimer.cancel(); //TODO: 解锁摇杆，停止计时器
+//                mTimer.cancel(); //TODO: 解锁摇杆，停止计时器
                 isMove = false;
                 // 注意：这里的 x y 与 圆中角度的对应问题（以 X 轴正向为 0 度）且转换为 km
                 disLng = mSpeed * (double)(DivGo / 1000) * mR * Math.cos(mAngle * 2 * Math.PI / 360) / 1000;// 注意安卓中的三角函数使用的是弧度
@@ -890,7 +893,13 @@ public class JoyStick extends View {
     private void autoRun()
     {
         mR = 1;
-        mSpeed = 2;
+        mSpeed = 4;
+        if (fist_enter_flag)
+        {
+            nowLng = MainActivity.startLon;
+            nowLat = MainActivity.startLat;
+            fist_enter_flag = false;
+        }
         switch (nowTask)
         {
             case start:
@@ -899,27 +908,37 @@ public class JoyStick extends View {
                 calculateAngle(MainActivity.startLat, MainActivity.startLon, targetLat_one, targetLng_one );
                 Log.d("calculate_position1", "calculate_position: " + MainActivity.startLat + "  " + MainActivity.startLon);
                 Log.d("calculate_position2", "calculate_position: " + targetLat_one + "  " + targetLng_one);
+                nowLng += disLng / (111.320 * Math.cos(Math.abs(nowLat) * Math.PI / 180));
+                nowLat += disLat / 110.574;
 
 //                mTimer.start();
                 break;
             case position1:
                 //TODO: 跑到position2
                 calculateAngle(targetLat_one, targetLng_one, targetLat_two, targetLng_two );
+                nowLng += disLng / (111.320 * Math.cos(Math.abs(nowLat) * Math.PI / 180));
+                nowLat += disLat / 110.574;
 //                nowTask = task.position2;
                 break;
             case position2:
                 //TODO: 跑到position3
                 calculateAngle(targetLat_two, targetLng_two, targetLat_thr, targetLng_thr );
+                nowLng += disLng / (111.320 * Math.cos(Math.abs(nowLat) * Math.PI / 180));
+                nowLat += disLat / 110.574;
 //                nowTask = task.position3;
                 break;
             case position3:
                 //TODO: 跑到position4
                 calculateAngle(targetLat_thr, targetLng_thr, targetLat_for, targetLng_for );
+                nowLng += disLng / (111.320 * Math.cos(Math.abs(nowLat) * Math.PI / 180));
+                nowLat += disLat / 110.574;
 //                nowTask = task.position4;
                 break;
             case position4:
                 //TODO: 跑到position1
                 calculateAngle(targetLat_for, targetLng_for, targetLat_one, targetLng_one );
+                nowLng += disLng / (111.320 * Math.cos(Math.abs(nowLat) * Math.PI / 180));
+                nowLat += disLat / 110.574;
 //                nowTask = task.position1;
                 break;
         }
