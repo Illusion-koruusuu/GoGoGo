@@ -100,9 +100,7 @@ public class JoyStick extends View {
     private static boolean isAdded = false;
     private int timeCounter = 0;
     private int runTime;
-    private boolean fist_enter_flag = true;
-    private double nowLng;
-    private double nowLat;
+    private boolean change_task_flag = true;
 
     enum task
     {
@@ -894,53 +892,31 @@ public class JoyStick extends View {
     {
         mR = 1;
         mSpeed = 4;
-        if (fist_enter_flag)
+        if (change_task_flag)
         {
-            nowLng = MainActivity.startLon;
-            nowLat = MainActivity.startLat;
-            fist_enter_flag = false;
-        }
-        switch (nowTask)
-        {
-            case start:
-                //TODO: 从当前点跑到position1
-//                nowTask = task.position1;
-                calculateAngle(MainActivity.startLat, MainActivity.startLon, targetLat_one, targetLng_one );
-                Log.d("calculate_position1", "calculate_position: " + MainActivity.startLat + "  " + MainActivity.startLon);
-                Log.d("calculate_position2", "calculate_position: " + targetLat_one + "  " + targetLng_one);
-                nowLng += disLng / (111.320 * Math.cos(Math.abs(nowLat) * Math.PI / 180));
-                nowLat += disLat / 110.574;
-
-//                mTimer.start();
-                break;
-            case position1:
-                //TODO: 跑到position2
-                calculateAngle(targetLat_one, targetLng_one, targetLat_two, targetLng_two );
-                nowLng += disLng / (111.320 * Math.cos(Math.abs(nowLat) * Math.PI / 180));
-                nowLat += disLat / 110.574;
-//                nowTask = task.position2;
-                break;
-            case position2:
-                //TODO: 跑到position3
-                calculateAngle(targetLat_two, targetLng_two, targetLat_thr, targetLng_thr );
-                nowLng += disLng / (111.320 * Math.cos(Math.abs(nowLat) * Math.PI / 180));
-                nowLat += disLat / 110.574;
-//                nowTask = task.position3;
-                break;
-            case position3:
-                //TODO: 跑到position4
-                calculateAngle(targetLat_thr, targetLng_thr, targetLat_for, targetLng_for );
-                nowLng += disLng / (111.320 * Math.cos(Math.abs(nowLat) * Math.PI / 180));
-                nowLat += disLat / 110.574;
-//                nowTask = task.position4;
-                break;
-            case position4:
-                //TODO: 跑到position1
-                calculateAngle(targetLat_for, targetLng_for, targetLat_one, targetLng_one );
-                nowLng += disLng / (111.320 * Math.cos(Math.abs(nowLat) * Math.PI / 180));
-                nowLat += disLat / 110.574;
-//                nowTask = task.position1;
-                break;
+            switch (nowTask)
+            {
+                case start:
+                    //从当前点跑到position1
+                    calculateAngle(MainActivity.startLat, MainActivity.startLon, targetLat_one, targetLng_one );
+                    break;
+                case position1:
+                    //跑到position2
+                    calculateAngle(ServiceGo.mCurLat, ServiceGo.mCurLng, targetLat_two, targetLng_two );
+                    break;
+                case position2:
+                    //跑到position3
+                    calculateAngle(ServiceGo.mCurLat, ServiceGo.mCurLng, targetLat_thr, targetLng_thr );
+                    break;
+                case position3:
+                    //跑到position4
+                    calculateAngle(ServiceGo.mCurLat, ServiceGo.mCurLng, targetLat_for, targetLng_for );
+                    break;
+                case position4:
+                    //跑到position1
+                    calculateAngle(ServiceGo.mCurLat, ServiceGo.mCurLng, targetLat_one, targetLng_one );
+                    break;
+            }
         }
     }
 
@@ -1040,10 +1016,12 @@ public class JoyStick extends View {
             }
             timeCounter = 0;
             arrivedFlag = true;
+            change_task_flag = true;
         }
         else
         {
             arrivedFlag = false;
+            change_task_flag = false;
         }
         return arrivedFlag;
     }
